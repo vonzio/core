@@ -78,6 +78,12 @@ export interface ComposerSlotProps {
   workspaceId: string | null;
   /** Active profile id; null when no profile has been picked yet. */
   profileId: string | null;
+  /** Currently-attached VPN tunnel for the running container, if any.
+   *  Lets composer-side controls (e.g. the VPN picker) detect when a
+   *  pinned override differs from what's actually wired up — Docker
+   *  can't swap a container's network_mode mid-flight, so a change
+   *  requires container recreation. */
+  attachedTunnel?: { id: string; name: string } | null;
 }
 
 export interface ComposerSlotReg {

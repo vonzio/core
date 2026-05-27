@@ -985,6 +985,7 @@ export function Workspace() {
                             key={slot.id}
                             workspaceId={activeWorkspaceId ?? null}
                             profileId={activeProfile?.id ?? null}
+                            attachedTunnel={activeWorkspace?.attached_tunnel ?? null}
                           />
                         );
                       })}
