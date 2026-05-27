@@ -163,7 +163,7 @@ Hard-refresh the browser.
 
 ### Agent base image build is slow on Apple Silicon
 
-First `make docker-dev-oss` runs `make agent-base-local`, which builds `ghcr.io/vonzio/core/agent-base:latest` for your arch (3 min cold). Subsequent boots reuse the cached image.
+First `make docker-dev-oss` runs `make agent-base-local`, which builds `ghcr.io/vonzio/vonzio/agent-base:latest` for your arch (3 min cold). Subsequent boots reuse the cached image.
 
 ### "Cannot find native binding" for @tailwindcss/oxide in dev container
 
