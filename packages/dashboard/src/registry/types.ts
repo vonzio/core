@@ -66,6 +66,27 @@ export interface WorkspaceHeaderSlotReg {
   order?: number;
 }
 
+/** Slot rendered in the composer's meta line, alongside the ModelPicker.
+ *  Designed for per-message / per-workspace choices: the picker can
+ *  manage its own state but should treat `workspaceId === null` as
+ *  "new chat, not yet created — stash the choice and apply after
+ *  workspace creation". `profileId === null` means no profile is
+ *  active yet either (extension should skip rendering or stay inert). */
+export interface ComposerSlotProps {
+  /** Active workspace session id, or null when the user is composing
+   *  a new chat that hasn't been persisted yet. */
+  workspaceId: string | null;
+  /** Active profile id; null when no profile has been picked yet. */
+  profileId: string | null;
+}
+
+export interface ComposerSlotReg {
+  id: string;
+  component: ComponentType<ComposerSlotProps>;
+  entitlement?: Entitlement;
+  order?: number;
+}
+
 export interface OnboardingStepProps {
   onNext: () => void;
   onSkip?: () => void;
