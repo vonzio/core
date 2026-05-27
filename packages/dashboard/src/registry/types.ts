@@ -66,6 +66,33 @@ export interface WorkspaceHeaderSlotReg {
   order?: number;
 }
 
+/** Slot rendered in the composer's meta line, alongside the ModelPicker.
+ *  Designed for per-message / per-workspace choices: the picker can
+ *  manage its own state but should treat `workspaceId === null` as
+ *  "new chat, not yet created — stash the choice and apply after
+ *  workspace creation". `profileId === null` means no profile is
+ *  active yet either (extension should skip rendering or stay inert). */
+export interface ComposerSlotProps {
+  /** Active workspace session id, or null when the user is composing
+   *  a new chat that hasn't been persisted yet. */
+  workspaceId: string | null;
+  /** Active profile id; null when no profile has been picked yet. */
+  profileId: string | null;
+  /** Currently-attached VPN tunnel for the running container, if any.
+   *  Lets composer-side controls (e.g. the VPN picker) detect when a
+   *  pinned override differs from what's actually wired up — Docker
+   *  can't swap a container's network_mode mid-flight, so a change
+   *  requires container recreation. */
+  attachedTunnel?: { id: string; name: string } | null;
+}
+
+export interface ComposerSlotReg {
+  id: string;
+  component: ComponentType<ComposerSlotProps>;
+  entitlement?: Entitlement;
+  order?: number;
+}
+
 export interface OnboardingStepProps {
   onNext: () => void;
   onSkip?: () => void;
@@ -74,7 +101,10 @@ export interface OnboardingStepProps {
 export interface OnboardingStepReg {
   id: string;
   component: ComponentType<OnboardingStepProps>;
-  predicate?: () => boolean;
+  /** Returns true when this step should fire. Can be async — predicates
+   *  often need a network round-trip (e.g. "does this user have any
+   *  API keys yet?"). Steps without a predicate always fire. */
+  predicate?: () => boolean | Promise<boolean>;
   order?: number;
 }
 

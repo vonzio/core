@@ -13,6 +13,7 @@ import { authClient } from "@/lib/auth-client.js";
 import { useIsMobile } from "@/hooks/use-mobile.js";
 import { useTheme } from "@/hooks/useTheme.js";
 import { getNavItems, getUserMenuItems, useEntitlements, type NavItemReg } from "@/registry/index.js";
+import { OnboardingHost } from "./OnboardingHost.js";
 import {
   AppShell as ShellLayout,
   Rail,
@@ -248,6 +249,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       onBackdropClick={() => setMobileOpen(false)}
     >
       {children}
+      {/* Onboarding modal — fires when a registered step's predicate
+       *  matches (e.g. brand-new user with no API key). Renders at most
+       *  one step per session; dismissed steps cached in sessionStorage. */}
+      <OnboardingHost />
     </ShellLayout>
   );
 }
