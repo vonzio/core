@@ -288,6 +288,16 @@ export function mountBetterAuth(server: FastifyInstance, auth: Auth): void {
       }
 
       const text = await response.text();
+      // Log Better Auth 5xx response bodies so we can debug them — the
+      // Fastify access log shows the status code but not the body, and
+      // Better Auth returns error details in the body (not as a thrown
+      // exception that Fastify would log on its own).
+      if (response.status >= 500) {
+        request.log.error(
+          { authPath: url.pathname, status: response.status, body: text },
+          "Better Auth returned 5xx",
+        );
+      }
       reply.send(text || null);
     },
   });
