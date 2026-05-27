@@ -101,15 +101,28 @@ export interface OnboardingStepProps {
 export interface OnboardingStepReg {
   id: string;
   component: ComponentType<OnboardingStepProps>;
-  predicate?: () => boolean;
+  /** Returns true when this step should fire. Can be async — predicates
+   *  often need a network round-trip (e.g. "does this user have any
+   *  API keys yet?"). Steps without a predicate always fire. */
+  predicate?: () => boolean | Promise<boolean>;
   order?: number;
 }
 
 export interface UserMenuItemReg {
   id: string;
   label: ReactNode;
+  /** Optional Lucide icon shown to the left of the label. */
+  icon?: LucideIcon;
+  /** Navigate to this path on click (uses react-router-dom). Mutually
+   *  exclusive with `onClick` — `to` wins if both are set. */
+  to?: string;
+  /** Programmatic action on click. Use this when navigation alone
+   *  isn't enough (e.g. opening a modal). */
   onClick?: () => void;
   danger?: boolean;
   entitlement?: Entitlement;
+  /** Lower = higher in the menu. Hardcoded items get implicit orders
+   *  (Settings=10, Operations=20, Agents=30) so extensions can slot
+   *  between them by picking the appropriate number. */
   order?: number;
 }

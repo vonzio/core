@@ -75,6 +75,7 @@ export function registerComposerSlot(reg: ComposerSlotReg): void {
   state.composerSlots.set(reg.id, reg);
 }
 
+
 export function registerOnboardingStep(reg: OnboardingStepReg): void {
   state.onboardingSteps.set(reg.id, reg);
 }
@@ -110,6 +111,7 @@ export function getWorkspaceHeaderSlots(): WorkspaceHeaderSlotReg[] {
 export function getComposerSlots(): ComposerSlotReg[] {
   return sortByOrder(Array.from(state.composerSlots.values()));
 }
+
 
 export function getOnboardingSteps(): OnboardingStepReg[] {
   return sortByOrder(Array.from(state.onboardingSteps.values()));
