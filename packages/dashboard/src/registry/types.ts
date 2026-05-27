@@ -46,6 +46,26 @@ export interface TopbarSlotReg {
   order?: number;
 }
 
+/** Slot rendered inside the workspace chat header, between the status
+ *  pill and the action buttons. Receives the active workspace so the
+ *  injected control can render in context (e.g. a VPN tunnel picker
+ *  scoped to that session). Multiple slots are sorted by `order`. */
+export interface WorkspaceHeaderSlotProps {
+  workspace: {
+    session_id: string;
+    profile_id: string;
+    /** Currently attached tunnel, if any. */
+    attached_tunnel?: { id: string; name: string } | null;
+  };
+}
+
+export interface WorkspaceHeaderSlotReg {
+  id: string;
+  component: ComponentType<WorkspaceHeaderSlotProps>;
+  entitlement?: Entitlement;
+  order?: number;
+}
+
 export interface OnboardingStepProps {
   onNext: () => void;
   onSkip?: () => void;
