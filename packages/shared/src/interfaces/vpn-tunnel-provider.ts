@@ -59,9 +59,19 @@ export interface TunnelInfo {
  * indifferent.
  */
 export interface VpnTunnelProvider {
+  /**
+   * Resolves the tunnel for an agent launch.
+   *
+   * @param workspaceId  Optional. When supplied, providers may consult
+   *   a per-workspace override (the workspace is pinned to a specific
+   *   tunnel) before falling back to profile-based matching. The
+   *   parameter is opaque to the seam and ignored by providers that
+   *   don't support per-workspace pinning (e.g. the OSS noop).
+   */
   resolveActiveTunnel(
     userId: string,
     profileId: string,
+    workspaceId?: string,
   ): Promise<TunnelInfo | null>;
   /**
    * Best-effort event recorder for tunnel lifecycle observability —

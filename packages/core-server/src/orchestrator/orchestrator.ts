@@ -629,7 +629,7 @@ export class Orchestrator extends EventEmitter {
       binds.push(`${wsVolume}:/workspace`, `${sdkVolume}:/home/agent/.claude`);
     }
 
-    const vpn = await this.ensureVpnSidecar(profile);
+    const vpn = await this.ensureVpnSidecar(profile, sessionId);
     const containerId = await this.deps.containerManager.createContainer({
       image: profile.container_image,
       registryAuth: this.buildRegistryAuth(profile),
@@ -1496,12 +1496,16 @@ export class Orchestrator extends EventEmitter {
    */
   private async ensureVpnSidecar(
     profile: Profile,
+    workspaceId?: string,
   ): Promise<{ sidecarId: string; tunnelId: string; networkMode: string; dns?: string[]; searchDomains?: string[] } | null> {
     const provider = this.deps.vpnTunnelProvider?.();
     const encryptionKey = this.deps.config.encryptionKey;
     if (!provider || !encryptionKey || !profile.user_id) return null;
     try {
-      const tunnel = await provider.resolveActiveTunnel(profile.user_id, profile.id);
+      // workspaceId, when passed, lets the provider consult a
+      // per-workspace tunnel override before falling back to the
+      // profile-based resolver.
+      const tunnel = await provider.resolveActiveTunnel(profile.user_id, profile.id, workspaceId);
       if (!tunnel) return null;
 
       // Reuse path: another agent already brought up a sidecar for
