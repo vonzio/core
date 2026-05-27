@@ -27,8 +27,8 @@ The manual recipe below is the same steps without the wrapper, for readers who w
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/vonzio/core.git
-cd core
+git clone https://github.com/vonzio/vonzio.git
+cd vonzio
 cp .env.example .env
 ```
 
@@ -182,6 +182,6 @@ Three common causes:
 
 ## Need help
 
-- [GitHub Issues](https://github.com/vonzio/core/issues) for bugs and feature requests
-- [GitHub Discussions](https://github.com/vonzio/core/discussions) for questions
+- [GitHub Issues](https://github.com/vonzio/vonzio/issues) for bugs and feature requests
+- [GitHub Discussions](https://github.com/vonzio/vonzio/discussions) for questions
 - `security@vonz.io` for vulnerability reports (please don't open public issues)
