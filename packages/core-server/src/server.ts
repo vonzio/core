@@ -503,7 +503,7 @@ export async function buildServer(deps: ServerDeps) {
     });
     v1.register(eventRoutes, { tracker: eventTracker });
     v1.register(taskRoutes, { taskService, profileService });
-    v1.register(workspaceRoutes, { workspaceService, profileService, eventLog });
+    v1.register(workspaceRoutes, { workspaceService, profileService, eventLog, orchestrator });
     v1.register(workspaceFilesRoutes, { sessionRegistry, containerManager });
     v1.register(profileRoutes, { profileService, apiKeyService, modelListService });
     v1.register(userResourceRoutes, { db, apiKeyService, profileService, toolFileService, skillService, subagentService, gitProviderService, secretVaultService });
