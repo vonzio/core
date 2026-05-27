@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { admin, captcha } from "better-auth/plugins";
+import { captcha } from "better-auth/plugins";
 import pg from "pg";
 import { eq, sql } from "drizzle-orm";
 import { Resend } from "resend";
@@ -31,7 +31,7 @@ function resolveLoginMethod(context: { path?: string } | null | undefined): stri
 // `Auth` alias below (ReturnType<typeof createAuth>) which preserves
 // inference without needing the unportable zod path.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker?: Tracker): any {
+export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker?: Tracker, extraPlugins: any[] = []): any {
   const resend = config.RESEND_API_KEY ? new Resend(config.RESEND_API_KEY) : null;
 
   const auth = betterAuth({
@@ -180,7 +180,10 @@ export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker
       },
     },
     plugins: [
-      admin(),
+      // cp-server contributes the admin() plugin via getAuthPlugins()
+      // when it's installed. OSS doesn't ship admin user-management
+      // routes (single-user deployment), so extraPlugins is empty there.
+      ...extraPlugins,
       ...(config.TURNSTILE_SECRET_KEY ? [captcha({
         provider: "cloudflare-turnstile",
         secretKey: config.TURNSTILE_SECRET_KEY,
