@@ -117,6 +117,9 @@ export class Orchestrator extends EventEmitter {
     networkMode: string;
     refCount: number;
     version: string;
+    /** Human-readable tunnel name, surfaced to the dashboard's
+     *  workspace UI as "VPN: <name>" pill. */
+    name: string;
     dns?: string[];
     searchDomains?: string[];
   }>();
@@ -186,6 +189,17 @@ export class Orchestrator extends EventEmitter {
 
   clearPlatformToken(token: string): void {
     this.platformTokens.delete(token);
+  }
+
+  /** Returns the VPN tunnel currently routing the given agent container,
+   *  or null. Used by the workspace endpoint to render the "VPN: <name>"
+   *  pill in the dashboard chat header. */
+  getActiveTunnelByAgentContainer(containerId: string): { id: string; name: string } | null {
+    const pair = this.sidecarsByAgent.get(containerId);
+    if (!pair) return null;
+    const entry = this.sidecarsByTunnel.get(pair.tunnelId);
+    if (!entry) return null;
+    return { id: pair.tunnelId, name: entry.name };
   }
 
   start(): void {
@@ -1572,7 +1586,7 @@ export class Orchestrator extends EventEmitter {
    *  bookkeeping. Called only by ensureVpnSidecar via the in-flight
    *  serialization. */
   private async createSidecar(
-    tunnel: { id: string; type: string; encryptedConfig?: string; authBlobEncrypted?: string; egressLockdown?: boolean; fullTunnel?: boolean; sidecarImage: string; version: string },
+    tunnel: { id: string; name: string; type: string; encryptedConfig?: string; authBlobEncrypted?: string; egressLockdown?: boolean; fullTunnel?: boolean; sidecarImage: string; version: string },
     provider: NonNullable<ReturnType<NonNullable<OrchestratorDeps["vpnTunnelProvider"]>>>,
     encryptionKey: string,
   ): Promise<{ sidecarId: string; tunnelId: string; networkMode: string; dns?: string[]; searchDomains?: string[] } | null> {
@@ -1646,6 +1660,7 @@ export class Orchestrator extends EventEmitter {
       networkMode,
       refCount: 1,
       version: tunnel.version,
+      name: tunnel.name,
       dns,
       searchDomains,
     });
