@@ -39,6 +39,16 @@ export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker
     baseURL: config.BETTER_AUTH_URL,
     basePath: "/api/auth",
     secret: config.BETTER_AUTH_SECRET,
+    // Surface Better Auth's internal errors. Without this, failures
+    // like database-hook throws are wrapped into a generic
+    // "Failed to create user" with no detail in the response body.
+    logger: {
+      level: "debug",
+      log: (level, message, ...args) => {
+        // eslint-disable-next-line no-console
+        console.log(`[better-auth ${level}]`, message, ...args);
+      },
+    },
     socialProviders: {
       ...(config.AUTH_GOOGLE_CLIENT_ID && config.AUTH_GOOGLE_CLIENT_SECRET ? {
         google: {
@@ -106,7 +116,17 @@ export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker
     databaseHooks: {
       user: {
         create: {
-          before: async (user) => {
+          before: async (user, context) => {
+            // The registration gate exists to stop unauthenticated
+            // sign-up attempts. Admin-initiated creation
+            // (POST /api/auth/admin/create-user, gated by the admin
+            // plugin's auth check) is intentional and must always go
+            // through, regardless of REGISTRATION_ENABLED. Without
+            // this check Better Auth swallowed our `return false`
+            // into a generic "FAILED_TO_CREATE_USER" 500.
+            if (context?.path?.startsWith("/admin/create-user")) {
+              return undefined;
+            }
             // Block OAuth sign-up when registration is disabled
             if (!config.REGISTRATION_ENABLED) {
               const existing = await db.execute(sql`SELECT id FROM "user" WHERE email = ${user.email}`);
