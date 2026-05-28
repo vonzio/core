@@ -99,7 +99,6 @@ export class PlaybookService {
       next_run_at: null,
       created_at: now,
       updated_at: now,
-      org_id: null,
     };
     await this.db.insert(schema.playbooks).values(row);
     return this.mapPlaybook(row);
@@ -260,7 +259,7 @@ export class PlaybookService {
 
   // ── Mappers ──
 
-  private mapPlaybook(row: typeof schema.playbooks.$inferSelect): Playbook {
+  private mapPlaybook(row: Omit<typeof schema.playbooks.$inferSelect, "org_id">): Playbook {
     return {
       id: row.id,
       user_id: row.user_id,

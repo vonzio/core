@@ -655,29 +655,15 @@ const migrations: Migration[] = [
     version: 21,
     description: "Add nullable org_id column + single-column index to workspaces, playbooks, memories, invites, api_keys, events (populated by cp-server in SaaS; stays NULL in OSS)",
     up: async (handle) => {
-      // workspaces
-      await handle.db.execute(sql`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS org_id TEXT`);
-      await handle.db.execute(sql`CREATE INDEX IF NOT EXISTS workspaces_org_id_idx ON workspaces(org_id)`);
-
-      // playbooks
-      await handle.db.execute(sql`ALTER TABLE playbooks ADD COLUMN IF NOT EXISTS org_id TEXT`);
-      await handle.db.execute(sql`CREATE INDEX IF NOT EXISTS playbooks_org_id_idx ON playbooks(org_id)`);
-
-      // memories
-      await handle.db.execute(sql`ALTER TABLE memories ADD COLUMN IF NOT EXISTS org_id TEXT`);
-      await handle.db.execute(sql`CREATE INDEX IF NOT EXISTS memories_org_id_idx ON memories(org_id)`);
-
-      // invites
-      await handle.db.execute(sql`ALTER TABLE invites ADD COLUMN IF NOT EXISTS org_id TEXT`);
-      await handle.db.execute(sql`CREATE INDEX IF NOT EXISTS invites_org_id_idx ON invites(org_id)`);
-
-      // api_keys
-      await handle.db.execute(sql`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS org_id TEXT`);
-      await handle.db.execute(sql`CREATE INDEX IF NOT EXISTS api_keys_org_id_idx ON api_keys(org_id)`);
-
-      // events
-      await handle.db.execute(sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS org_id TEXT`);
-      await handle.db.execute(sql`CREATE INDEX IF NOT EXISTS events_org_id_idx ON events(org_id)`);
+      // Postgres supports transactional DDL, so either all 12 statements
+      // apply or none — no half-migrated state on partial failure.
+      await handle.db.transaction(async (tx) => {
+        const tables = ["workspaces", "playbooks", "memories", "invites", "api_keys", "events"];
+        for (const table of tables) {
+          await tx.execute(sql.raw(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS org_id TEXT`));
+          await tx.execute(sql.raw(`CREATE INDEX IF NOT EXISTS ${table}_org_id_idx ON ${table}(org_id)`));
+        }
+      });
     },
   },
 ];

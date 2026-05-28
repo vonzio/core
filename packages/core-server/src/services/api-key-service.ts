@@ -32,7 +32,6 @@ export class ApiKeyService {
       encrypted_auth_token: input.auth_token ? encrypt(input.auth_token, this.encryptionKey) : null,
       created_at: now,
       last_used_at: null,
-      org_id: null,
     };
 
     await this.db.insert(schema.anthropicKeys).values(row);
@@ -164,7 +163,7 @@ export class ApiKeyService {
   }
 
   private mapRow(
-    row: typeof schema.anthropicKeys.$inferSelect,
+    row: Omit<typeof schema.anthropicKeys.$inferSelect, "org_id">,
     redact: boolean,
     allowedUserIds: string[],
   ): AnthropicKey {
