@@ -31,7 +31,7 @@ export const playbookRoutes = fp(
         tags: ["Playbooks"],
       },
     }, async (request) => {
-      return playbookService.list(request.user!.id);
+      return playbookService.list(request.user!.id, request.orgContext?.org_id);
     });
 
     server.post<{ Body: { name: string; profile_id: string; prompt: string; schedule: string; description?: string; chain_config?: Record<string, unknown>; enabled?: boolean; trigger_type?: string; notify_on?: string; notification_channels?: string[]; interval_seconds?: number; success_criteria?: unknown[] } }>(
@@ -76,7 +76,7 @@ export const playbookRoutes = fp(
             notification_channels,
             interval_seconds,
             success_criteria: success_criteria as SuccessCriterion[] | undefined,
-          });
+          }, request.orgContext?.org_id);
           if (playbook.enabled) {
             await playbookScheduler.recomputeNextRun(playbook.id);
           }
@@ -112,6 +112,7 @@ export const playbookRoutes = fp(
             request.params.id,
             request.user!.id,
             body as Parameters<PlaybookService["update"]>[2],
+            request.orgContext?.org_id,
           );
           if (!updated) {
             return reply.code(404).send(errorResponse(ErrorCodes.NOT_FOUND, "Playbook not found"));
@@ -136,7 +137,7 @@ export const playbookRoutes = fp(
         },
       },
       async (request, reply) => {
-        const deleted = await playbookService.delete(request.params.id, request.user!.id);
+        const deleted = await playbookService.delete(request.params.id, request.user!.id, request.orgContext?.org_id);
         if (!deleted) {
           return reply.code(404).send(errorResponse(ErrorCodes.NOT_FOUND, "Playbook not found"));
         }
@@ -159,8 +160,11 @@ export const playbookRoutes = fp(
         },
       },
       async (request, reply) => {
-        const playbook = await playbookService.get(request.params.id);
-        if (!playbook || playbook.user_id !== request.user!.id) {
+        const playbook = await playbookService.get(request.params.id, {
+          userId: request.user!.id,
+          orgId: request.orgContext?.org_id,
+        });
+        if (!playbook) {
           return reply.code(404).send(errorResponse(ErrorCodes.NOT_FOUND, "Playbook not found"));
         }
         // Fire in background, return immediately
@@ -182,8 +186,11 @@ export const playbookRoutes = fp(
         },
       },
       async (request, reply) => {
-        const playbook = await playbookService.get(request.params.id);
-        if (!playbook || playbook.user_id !== request.user!.id) {
+        const playbook = await playbookService.get(request.params.id, {
+          userId: request.user!.id,
+          orgId: request.orgContext?.org_id,
+        });
+        if (!playbook) {
           return reply.code(404).send(errorResponse(ErrorCodes.NOT_FOUND, "Playbook not found"));
         }
         return playbookService.listRuns(request.params.id);
@@ -197,6 +204,10 @@ export const playbookRoutes = fp(
         tags: ["Playbooks"],
       },
     }, async (request) => {
+      // playbook_runs has no org_id column today — ownership is
+      // inherited via the parent playbook. The user_id filter is
+      // sufficient for OSS; SaaS scoping happens on the playbook
+      // list and on per-id ownership checks above.
       return playbookService.listRunsForUser(request.user!.id);
     });
 

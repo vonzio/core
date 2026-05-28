@@ -33,6 +33,9 @@ export const eventRoutes: FastifyPluginAsync<EventRoutesOptions> = async (server
         event,
         source: "client",
         userId: request.user?.id ?? null,
+        // OSS leaves orgContext undefined → null persisted; SaaS
+        // stamps the active org so admin dashboards can scope events.
+        orgId: request.orgContext?.org_id ?? null,
         properties: { ...(properties ?? {}), ...(path ? { path } : {}) },
         ip: clientIp(request),
         userAgent: request.headers["user-agent"] as string | undefined,
@@ -46,13 +49,14 @@ export const adminEventRoutes: FastifyPluginAsync<AdminEventRoutesOptions> = asy
   const { db } = opts;
 
   server.get<{
-    Querystring: { user_id?: string; event?: string; source?: string; since?: string; until?: string; limit?: string };
+    Querystring: { user_id?: string; org_id?: string; event?: string; source?: string; since?: string; until?: string; limit?: string };
   }>("/admin/events", async (request) => {
-    const { user_id, event, source, since, until } = request.query;
+    const { user_id, org_id, event, source, since, until } = request.query;
     const limit = Math.min(parseInt(request.query.limit ?? "500", 10) || 500, 2000);
 
     const conditions = [sql`1=1`];
     if (user_id) conditions.push(sql`user_id = ${user_id}`);
+    if (org_id) conditions.push(sql`org_id = ${org_id}`);
     if (event) conditions.push(sql`event LIKE ${event + "%"}`);
     if (source) conditions.push(sql`source = ${source}`);
     if (since) conditions.push(sql`created_at >= ${since}`);
@@ -61,7 +65,7 @@ export const adminEventRoutes: FastifyPluginAsync<AdminEventRoutesOptions> = asy
     const where = conditions.reduce((acc, cond, i) => (i === 0 ? cond : sql`${acc} AND ${cond}`));
 
     const rows = await db.execute(sql`
-      SELECT e.id, e.user_id, u.email AS user_email, u.name AS user_name,
+      SELECT e.id, e.user_id, e.org_id, u.email AS user_email, u.name AS user_name,
              e.session_id, e.event, e.source, e.properties, e.ip, e.user_agent, e.created_at
       FROM events e
       LEFT JOIN "user" u ON u.id = e.user_id
