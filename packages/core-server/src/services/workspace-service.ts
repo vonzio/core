@@ -46,18 +46,12 @@ export class WorkspaceService {
     }
 
     // Org-scoped filter (defense in depth): when orgId is provided,
-    // the row's org_id must match. The Workspace object exposed by the
-    // in-memory SessionRegistry doesn't carry org_id today, so apply
-    // the filter against the DB-backed `org_id` field once it exists
-    // on the in-memory shape, otherwise leave it as a no-op against
-    // live rows. Workspaces created without org_id (legacy OSS rows)
-    // are filtered out when an orgId is required. We additionally
-    // enforce the filter on the DB-loaded inactive set below.
+    // the in-memory Workspace row's org_id must match. Workspaces
+    // created without an org_id (legacy OSS rows that pre-date the v9
+    // backfill, or OSS deployments where no OrgContext is ever set)
+    // are filtered out by intent when an orgId is required.
     if (filters.orgId) {
-      all = all.filter((w) => {
-        const orgId = (w as unknown as { org_id?: string | null }).org_id;
-        return orgId === filters.orgId;
-      });
+      all = all.filter((w) => w.org_id === filters.orgId);
     }
 
     // Merge in expired workspaces from the DB. The registry deletes
@@ -65,16 +59,13 @@ export class WorkspaceService {
     // without this the API hides them entirely — bug the user reported
     // on v0.1.81 where 91 expired workspaces were invisible. Skip the
     // DB query when the caller asked for a non-expired status filter
-    // (no expired rows would match anyway, save the round-trip).
+    // (no expired rows would match anyway, save the round-trip). The
+    // org filter is pushed down to the SQL WHERE clause via
+    // listInactiveFromDB(userId, orgId), avoiding a fetch-then-JS-filter
+    // step that would pull cross-tenant rows through the wire.
     if (!filters.status || filters.status === "expired") {
-      const inactive = await this.registry.listInactiveFromDB(filters.userId);
-      const filteredInactive = filters.orgId
-        ? inactive.filter((w) => {
-            const orgId = (w as unknown as { org_id?: string | null }).org_id;
-            return orgId === filters.orgId;
-          })
-        : inactive;
-      all = all.concat(filteredInactive);
+      const inactive = await this.registry.listInactiveFromDB(filters.userId, filters.orgId);
+      all = all.concat(inactive);
     }
 
     // Exclude playbook-execution workspaces (session_id starts with "pb-")
@@ -168,6 +159,7 @@ export class WorkspaceService {
           session_id: row.session_id,
           container_id: row.container_id,
           user_id: row.user_id ?? "",
+          org_id: row.org_id ?? null,
           profile_id: row.profile_id,
           name: row.name ?? null,
           pinned: row.pinned,
@@ -230,8 +222,7 @@ export class WorkspaceService {
   async findOwnerForDelete(sessionId: string): Promise<{ userId: string | null; orgId: string | null } | null> {
     const live = this.registry.get(sessionId);
     if (live) {
-      const liveOrgId = (live as unknown as { org_id?: string | null }).org_id ?? null;
-      return { userId: live.user_id, orgId: liveOrgId };
+      return { userId: live.user_id, orgId: live.org_id ?? null };
     }
     const rows = await this.db
       .select({

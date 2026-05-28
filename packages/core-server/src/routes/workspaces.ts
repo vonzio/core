@@ -80,9 +80,7 @@ export const workspaceRoutes = fp(
       // context is set and the row's org_id matches). The org-match
       // branch lets every org member see workspaces owned by another
       // member in the same org without needing per-user fan-out.
-      const sessionOrgId = session
-        ? (session as unknown as { org_id?: string | null }).org_id ?? null
-        : null;
+      const sessionOrgId = session?.org_id ?? null;
       const orgCtxId = request.orgContext?.org_id;
       const orgMatch = !!orgCtxId && sessionOrgId === orgCtxId;
       if (!session || (!orgMatch && !isOwnerOrAdmin(request.user!, session.user_id))) {
@@ -142,9 +140,7 @@ export const workspaceRoutes = fp(
       },
     }, async (request, reply) => {
       const session = workspaceService.get(request.params.id);
-      const sessionOrgId = session
-        ? (session as unknown as { org_id?: string | null }).org_id ?? null
-        : null;
+      const sessionOrgId = session?.org_id ?? null;
       const orgCtxId = request.orgContext?.org_id;
       const orgMatch = !!orgCtxId && sessionOrgId === orgCtxId;
       if (!session || (!orgMatch && !isOwnerOrAdmin(request.user!, session.user_id))) {
@@ -168,9 +164,7 @@ export const workspaceRoutes = fp(
       },
     }, async (request, reply) => {
       const workspace = workspaceService.get(request.params.id);
-      const workspaceOrgId = workspace
-        ? (workspace as unknown as { org_id?: string | null }).org_id ?? null
-        : null;
+      const workspaceOrgId = workspace?.org_id ?? null;
       const orgCtxId = request.orgContext?.org_id;
       const orgMatch = !!orgCtxId && workspaceOrgId === orgCtxId;
       if (!workspace || (!orgMatch && !isOwnerOrAdmin(request.user!, workspace.user_id))) {
@@ -187,7 +181,13 @@ export const workspaceRoutes = fp(
       }
 
       const workspace = workspaceService.get(request.params.id);
-      if (!workspace) {
+      // Apply the same auth gate as GET /:id — without this, any
+      // authenticated user could rename someone else's workspace by
+      // calling /generate-title with their session_id.
+      const workspaceOrgId = workspace?.org_id ?? null;
+      const orgCtxId = request.orgContext?.org_id ?? null;
+      const orgMatch = !!orgCtxId && workspaceOrgId === orgCtxId;
+      if (!workspace || (!orgMatch && !isOwnerOrAdmin(request.user!, workspace.user_id))) {
         return reply.code(404).send(errorResponse(ErrorCodes.NOT_FOUND, "Workspace not found"));
       }
 

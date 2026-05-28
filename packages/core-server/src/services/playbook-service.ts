@@ -264,9 +264,16 @@ export class PlaybookService {
     return rows.map((r) => this.mapRun(r));
   }
 
-  async listRunsForUser(userId: string, limit = 50, playbookId?: string): Promise<PlaybookRun[]> {
+  async listRunsForUser(userId: string, limit = 50, playbookId?: string, orgId?: string): Promise<PlaybookRun[]> {
+    // playbook_runs has no org_id column today (runs inherit org from
+    // the parent playbook). When the caller supplies an orgId we JOIN
+    // through playbooks and filter on playbooks.org_id — keeping the
+    // tenant boundary enforced server-side rather than fetched-then-
+    // filtered. The JOIN already exists for playbook_name, so this is
+    // free.
     const conditions = [eq(schema.playbookRuns.user_id, userId)];
     if (playbookId) conditions.push(eq(schema.playbookRuns.playbook_id, playbookId));
+    if (orgId) conditions.push(eq(schema.playbooks.org_id, orgId));
     const rows = await this.db
       .select({
         run: schema.playbookRuns,
