@@ -10,6 +10,23 @@ import type { DrizzleDB } from "../db/index.js";
 import { emailLayout } from "../email/templates.js";
 import type { Tracker } from "../lib/event-tracker/index.js";
 
+/**
+ * Optional extra database hooks SaaS layers (cp-server) can register on top
+ * of the OSS core's Better Auth instance. Each hook is composed *after* the
+ * corresponding built-in hook runs, so existing behavior is preserved.
+ *
+ * Errors thrown from these hooks propagate to Better Auth and abort signup.
+ * Keep them idempotent — Better Auth may retry user creation in some paths,
+ * and the upstream hook does not roll back on downstream failure.
+ */
+export type ExtraAuthHooks = {
+  /**
+   * Composed AFTER the existing user.create.after hook. Errors thrown here
+   * propagate to Better Auth and abort signup. Use sparingly — keep idempotent.
+   */
+  userCreateAfter?: (user: { id: string; email: string; name: string | null }) => Promise<void>;
+};
+
 function resolveLoginMethod(context: { path?: string } | null | undefined): string | null {
   const path = context?.path;
   if (!path) return null;
@@ -30,7 +47,7 @@ function resolveLoginMethod(context: { path?: string } | null | undefined): stri
 // `Auth` alias below (ReturnType<typeof createAuth>) which preserves
 // inference without needing the unportable zod path.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker?: Tracker, extraPlugins: any[] = []): any {
+export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker?: Tracker, extraPlugins: any[] = [], extraHooks: ExtraAuthHooks = {}): any {
   const resend = config.RESEND_API_KEY ? new Resend(config.RESEND_API_KEY) : null;
 
   const auth = betterAuth({
@@ -161,6 +178,19 @@ export function createAuth(config: Config, pool: pg.Pool, db: DrizzleDB, tracker
               userId: user.id,
               properties: { email: user.email, method: resolveLoginMethod(context) },
             });
+
+            // SaaS-layer extension point. cp-server registers a personal-org
+            // auto-create hook here so every new user gets a default
+            // organization without OSS needing to know about organizations.
+            // Composed AFTER the built-in logic; throws abort signup, so
+            // hook authors must keep these idempotent.
+            if (extraHooks.userCreateAfter) {
+              await extraHooks.userCreateAfter({
+                id: user.id,
+                email: user.email,
+                name: user.name ?? null,
+              });
+            }
           },
         },
       },
