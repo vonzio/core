@@ -32,6 +32,7 @@ export class ApiKeyService {
       encrypted_auth_token: input.auth_token ? encrypt(input.auth_token, this.encryptionKey) : null,
       created_at: now,
       last_used_at: null,
+      org_id: null,
     };
 
     await this.db.insert(schema.anthropicKeys).values(row);

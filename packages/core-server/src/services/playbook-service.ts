@@ -99,6 +99,7 @@ export class PlaybookService {
       next_run_at: null,
       created_at: now,
       updated_at: now,
+      org_id: null,
     };
     await this.db.insert(schema.playbooks).values(row);
     return this.mapPlaybook(row);
