@@ -374,7 +374,7 @@ export async function buildServer(deps: ServerDeps) {
   // auto-create on signup). Optional-chained so OSS-only deployments and
   // older cp-server builds without this export keep working unchanged —
   // createAuth then sees the default empty object.
-  const extraAuthHooks: ExtraAuthHooks = cpServerModule?.getAuthHooks?.() ?? {};
+  const extraAuthHooks: ExtraAuthHooks = cpServerModule?.getAuthHooks?.({ db }) ?? {};
   const auth = createAuth(config, pgPool, db, eventTracker, extraAuthPlugins, extraAuthHooks);
 
   // First-run OSS setup wizard. Creates the lone admin on a fresh
