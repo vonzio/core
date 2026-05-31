@@ -27,9 +27,12 @@ services:
   docker-proxy:
     image: tecnativa/docker-socket-proxy:0.3.0
     restart: unless-stopped
-    read_only: true
-    tmpfs:
-      - /run
+    # NOTE: `read_only: true` was tried and removed -- the image's
+    # entrypoint regenerates /usr/local/etc/haproxy/haproxy.cfg from a
+    # baked-in template at startup, and any tmpfs overlay there masks
+    # the template. The real security control here is the verb allowlist
+    # (env vars below) -- a writable rootfs inside this isolated,
+    # single-purpose container adds little risk on top.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
@@ -48,6 +51,15 @@ services:
       - vonzio
     # Deliberately no host port — TCP is reachable only from peers on
     # the vonzio internal network (i.e. server).
+    healthcheck:
+      # wget is in the BusyBox base. /_ping is always allowed by the
+      # proxy when PING=1 and is the canonical Docker daemon liveness
+      # probe — same endpoint dockerode's docker.ping() hits.
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:2375/_ping || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   server:
     build:
@@ -97,7 +109,7 @@ services:
       postgres:
         condition: service_healthy
       docker-proxy:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - vonzio
