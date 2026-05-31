@@ -6,17 +6,29 @@ RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt
 WORKDIR /app
 
 # ── Layer 1: dependency install ──
-# Copy ONLY workspace + package manifests so this layer is cached when no
-# package.json/lock changes — even if every source file under it changed.
-# npm ci needs every workspace's package.json to set up symlinks correctly.
-COPY package.json package-lock.json tsconfig.base.json ./
+# Copy workspace + package manifests so this layer is cached when no
+# package.json changes — even if every source file under it changed.
+#
+# package-lock.json is deliberately NOT copied: the host-generated lockfile
+# pins platform-specific optional deps (most dev hosts are darwin-arm64),
+# and npm's bug https://github.com/npm/cli/issues/4828 makes `npm ci`
+# strictly honor "skipped: linux-*" entries for Rust-native packages like
+# @tailwindcss/oxide. The dashboard build then fails with
+# "Cannot find native binding." The same workaround is used in
+# Dockerfile.server.dev (see the longer note there).
+#
+# Trade-off: `npm install` resolves fresh inside the container, so it's
+# a little slower than `npm ci` and not bit-for-bit reproducible against
+# the host lockfile — acceptable for an OSS production image that needs
+# to build on any maintainer's laptop, not just the CI runner.
+COPY package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/core-server/package.json packages/core-server/
 COPY packages/dashboard/package.json packages/dashboard/
 COPY packages/widget/package.json packages/widget/
 COPY agent-runner/package.json agent-runner/
 
-RUN npm ci
+RUN npm install
 
 # ── Layer 2: source ──
 # Now copy the actual source. Changes here invalidate the build layers below
