@@ -209,9 +209,19 @@ describe("buildSessionEventsFacade", () => {
     const emitter = new EventEmitter();
     const facade = buildSessionEventsFacade(emitter);
     const events: string[] = [];
-    facade.on("task:token", () => events.push("token"));
-    facade.on("task:done", () => events.push("done"));
-    facade.on("task:failed", () => events.push("failed"));
+    // Wrap each handler so its body returns `void` (events.push() returns
+    // the array length, which the typed overloads of `on()` reject because
+    // `task:done` / `task:failed` are async-capable signatures that demand
+    // `void | Promise<void>`, not `number`).
+    facade.on("task:token", () => {
+      events.push("token");
+    });
+    facade.on("task:done", () => {
+      events.push("done");
+    });
+    facade.on("task:failed", () => {
+      events.push("failed");
+    });
     emitter.emit("task:token", "t", "s", "x");
     emitter.emit("task:done", "t", "s", { text: "ok" });
     emitter.emit("task:failed", "t", "s", "boom");
