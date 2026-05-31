@@ -105,7 +105,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Scan agent-base with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: ghcr.io/vonzio/vonzio/agent-base:ci
           format: table
@@ -140,7 +140,7 @@ jobs:
           cache-from: type=gha,scope=server
           cache-to: type=gha,scope=server,mode=max
       - name: Scan server image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: vonzio-server:ci
           format: table
@@ -152,8 +152,13 @@ jobs:
   secret-scan:
     # Scan PR diffs for accidentally-committed secrets (API keys,
     # private keys, tokens). Catches the foot-gun of pasting a working
-    # secret into a comment, test fixture, or example .env. Free for
-    # public repos.
+    # secret into a comment, test fixture, or example .env.
+    #
+    # Using TruffleHog instead of gitleaks-action -- gitleaks-action@v2
+    # requires a paid license for GitHub orgs (vonzio is an org).
+    # TruffleHog stays Apache-2.0 and free for any account type, and
+    # verifies credentials against the source provider to cut false
+    # positives.
     name: secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -164,9 +169,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: trufflesecurity/trufflehog@v3.81.10
+        with:
+          # Scan only the PR diff (base..head) -- a full-history scan
+          # on every PR would be wasteful and produce repeated noise
+          # for any pre-existing match.
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          # --only-verified: just credentials TruffleHog could
+          # actively verify against the source provider (e.g. valid
+          # Stripe key, live AWS key). Removes the long-tail of
+          # high-entropy false positives.
+          extra_args: --only-verified
 
   install-script-shellcheck:
     # Lint install.sh so we catch shell footguns before community users hit
