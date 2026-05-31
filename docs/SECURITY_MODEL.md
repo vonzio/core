@@ -57,6 +57,11 @@ provide. Bugs in any of these are in-scope for security reports.
   default username or password ships in the image.
 - **CSRF protection** on cookie-authenticated routes.
 - **Signed widget tokens** for embedded chat sessions, scoped per profile.
+- **Vulnerability + secret scanning in CI.** Every PR runs Trivy
+  against the agent-base and server images (fails on HIGH/CRITICAL
+  fixable CVEs in OS + library layers) and gitleaks against the diff
+  (fails on detected secrets — keys, tokens, private keys). Catches
+  regressions before they reach a release.
 
 ## What we do NOT protect against
 

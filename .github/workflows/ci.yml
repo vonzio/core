@@ -85,6 +85,9 @@ jobs:
   agent-base-build:
     # Smoke-builds the agent base image so we catch Dockerfile breakage at PR
     # time, not at end-user-install time. Doesn't push anywhere.
+    # Also runs Trivy against the built image so CVEs in the OS layer or
+    # bundled CLI binaries (git, jq, gh, chromium, etc.) get caught at
+    # PR time instead of in self-hosters' deployments.
     name: agent-base build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -101,6 +104,69 @@ jobs:
           tags: ghcr.io/vonzio/vonzio/agent-base:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Scan agent-base with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/vonzio/vonzio/agent-base:ci
+          format: table
+          # Fail on HIGH/CRITICAL only -- LOW/MEDIUM in a heavy
+          # debian + chromium + node image is noisy and largely upstream's
+          # to fix. ignore-unfixed avoids failing on CVEs with no
+          # available patch (we can't act on those at PR time anyway).
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+
+  server-image-scan:
+    # Build the prod server image and scan it. Separate job from
+    # agent-base because the layers are completely different (and the
+    # server build is the one that surfaced the npm-ci lockfile bug in
+    # PR #66 -- having it run on every PR catches that class early).
+    name: server image scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.server
+          push: false
+          load: true
+          tags: vonzio-server:ci
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
+      - name: Scan server image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: vonzio-server:ci
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+
+  secret-scan:
+    # Scan PR diffs for accidentally-committed secrets (API keys,
+    # private keys, tokens). Catches the foot-gun of pasting a working
+    # secret into a comment, test fixture, or example .env. Free for
+    # public repos.
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Pull requests only -- a push-to-main scan would just confirm
+    # what we already merged.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   install-script-shellcheck:
     # Lint install.sh so we catch shell footguns before community users hit
